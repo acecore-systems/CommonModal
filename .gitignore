@@ -1,9 +1,9 @@
-/.idea
-/.gradle
-/build
-/.github
-/local.properties
-/.vscode
+.idea
+.gradle
+build
+.github
+local.properties
+.vscode
 *.iml
 *.log
 *.jar
@@ -28,3 +28,7 @@
 *.pid
 *.seed
 *.pid.lock
+target/*
+
+plan.md
+plugin-spec.md

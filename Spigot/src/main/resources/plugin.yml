@@ -1,0 +1,4 @@
+name: commonModal
+version: '1.0.0'
+main: dev.acecore.commonModal.CommonModal
+api-version: '1.21'
