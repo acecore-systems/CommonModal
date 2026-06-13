@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "commonmodal",
+  "version": "${version}",
+  "name": "commonModal",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/commonmodal/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "dev.acecore.commonmodal.client.CommonmodalDataGenerator"
+    ],
+    "client": [
+      "dev.acecore.commonmodal.client.CommonmodalClient"
+    ],
+    "main": [
+      "dev.acecore.commonmodal.Commonmodal"
+    ]
+  },
+  "mixins": [
+    "commonmodal.mixins.json",
+    {
+      "config": "commonmodal.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
