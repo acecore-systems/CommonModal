@@ -1,5 +1,5 @@
 name: commonModal
-version: ${project.version}
+version: 1.0.0
 main: dev.acecore.commonmodal.CommonModalPlugin
 api-version: '1.21'
 author: acecore
