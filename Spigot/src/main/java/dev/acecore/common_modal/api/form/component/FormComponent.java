@@ -1,4 +1,4 @@
-package dev.acecore.commonmodal.api.form.component;
+package dev.acecore.common_modal.api.form.component;
 
 /**
  * Custom Form に配置可能な入力/表示コンポーネントの基準インターフェース。

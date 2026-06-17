@@ -1,4 +1,4 @@
-package dev.acecore.commonmodal.api.form.component;
+package dev.acecore.common_modal.api.form.component;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,7 +11,7 @@ import java.util.Objects;
  * <p>plan.md §4.3 / DECISIONS.md §3.3.1 に基づく。Fabric 側では左右矢印 (StepSlider 的表現)
  * として描画されるが、サーバー側モデルは Cumulus の {@code dropdown} と同じ。</p>
  */
-public final class DropdownComponent implements FormComponent {
+public final class DropdownComponent implements dev.acecore.common_modal.api.form.component.FormComponent {
     private final String text;
     private final List<String> options;
     private final int defaultIndex;

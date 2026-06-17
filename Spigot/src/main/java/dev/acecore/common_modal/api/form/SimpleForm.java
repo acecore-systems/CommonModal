@@ -1,6 +1,6 @@
-package dev.acecore.commonmodal.api.form;
+package dev.acecore.common_modal.api.form;
 
-import dev.acecore.commonmodal.api.CommonModalAPI;
+import dev.acecore.common_modal.api.CommonModalAPI;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;

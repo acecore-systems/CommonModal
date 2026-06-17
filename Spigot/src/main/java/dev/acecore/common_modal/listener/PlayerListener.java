@@ -1,6 +1,6 @@
-package dev.acecore.commonmodal.listener;
+package dev.acecore.common_modal.listener;
 
-import dev.acecore.commonmodal.api.CommonModalAPI;
+import dev.acecore.common_modal.api.CommonModalAPI;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;

@@ -1,12 +1,12 @@
-package dev.acecore.commonmodal;
+package dev.acecore.common_modal;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import dev.acecore.commonmodal.api.CommonModalAPI;
-import dev.acecore.commonmodal.listener.PlayerListener;
-import dev.acecore.commonmodal.protocol.CommonModalChannels;
-import dev.acecore.commonmodal.protocol.FormCodec;
+import dev.acecore.common_modal.api.CommonModalAPI;
+import dev.acecore.common_modal.listener.PlayerListener;
+import dev.acecore.common_modal.protocol.CommonModalChannels;
+import dev.acecore.common_modal.protocol.FormCodec;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;

@@ -1,11 +1,11 @@
-package dev.acecore.commonmodal.api;
+package dev.acecore.common_modal.api;
 
-import dev.acecore.commonmodal.api.form.CustomForm;
-import dev.acecore.commonmodal.api.form.Form;
-import dev.acecore.commonmodal.api.form.ModalForm;
-import dev.acecore.commonmodal.api.form.SimpleForm;
-import dev.acecore.commonmodal.protocol.CommonModalChannels;
-import dev.acecore.commonmodal.protocol.FormCodec;
+import dev.acecore.common_modal.api.form.CustomForm;
+import dev.acecore.common_modal.api.form.Form;
+import dev.acecore.common_modal.api.form.ModalForm;
+import dev.acecore.common_modal.api.form.SimpleForm;
+import dev.acecore.common_modal.protocol.CommonModalChannels;
+import dev.acecore.common_modal.protocol.FormCodec;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;

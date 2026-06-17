@@ -1,4 +1,4 @@
-package dev.acecore.commonmodal.api.form;
+package dev.acecore.common_modal.api.form;
 
 /**
  * SimpleForm ボタンに添付できるアイコン画像定義。

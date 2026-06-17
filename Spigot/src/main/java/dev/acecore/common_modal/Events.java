@@ -1,4 +1,4 @@
-package dev.acecore.commonModal;
+package dev.acecore.common_modal;
 
 import org.bukkit.event.Listener;
 

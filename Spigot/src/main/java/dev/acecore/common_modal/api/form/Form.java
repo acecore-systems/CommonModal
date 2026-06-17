@@ -1,4 +1,4 @@
-package dev.acecore.commonmodal.api.form;
+package dev.acecore.common_modal.api.form;
 
 import org.bukkit.entity.Player;
 

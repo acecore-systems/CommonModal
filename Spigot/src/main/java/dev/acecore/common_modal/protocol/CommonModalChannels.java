@@ -1,4 +1,4 @@
-package dev.acecore.commonmodal.protocol;
+package dev.acecore.common_modal.protocol;
 
 /**
  * commonModal が使用する Plugin Message Channel 識別子。

@@ -1,20 +1,20 @@
-package dev.acecore.commonmodal.protocol;
+package dev.acecore.common_modal.protocol;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import dev.acecore.commonmodal.api.form.CustomForm;
-import dev.acecore.commonmodal.api.form.Form;
-import dev.acecore.commonmodal.api.form.FormImage;
-import dev.acecore.commonmodal.api.form.ModalForm;
-import dev.acecore.commonmodal.api.form.SimpleForm;
-import dev.acecore.commonmodal.api.form.component.DropdownComponent;
-import dev.acecore.commonmodal.api.form.component.FormComponent;
-import dev.acecore.commonmodal.api.form.component.InputComponent;
-import dev.acecore.commonmodal.api.form.component.LabelComponent;
-import dev.acecore.commonmodal.api.form.component.SliderComponent;
-import dev.acecore.commonmodal.api.form.component.ToggleComponent;
+import dev.acecore.common_modal.api.form.CustomForm;
+import dev.acecore.common_modal.api.form.Form;
+import dev.acecore.common_modal.api.form.FormImage;
+import dev.acecore.common_modal.api.form.ModalForm;
+import dev.acecore.common_modal.api.form.SimpleForm;
+import dev.acecore.common_modal.api.form.component.DropdownComponent;
+import dev.acecore.common_modal.api.form.component.FormComponent;
+import dev.acecore.common_modal.api.form.component.InputComponent;
+import dev.acecore.common_modal.api.form.component.LabelComponent;
+import dev.acecore.common_modal.api.form.component.SliderComponent;
+import dev.acecore.common_modal.api.form.component.ToggleComponent;
 
 import java.util.ArrayList;
 import java.util.List;

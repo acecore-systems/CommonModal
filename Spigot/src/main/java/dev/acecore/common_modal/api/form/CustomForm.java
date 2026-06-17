@@ -1,12 +1,12 @@
-package dev.acecore.commonmodal.api.form;
+package dev.acecore.common_modal.api.form;
 
-import dev.acecore.commonmodal.api.CommonModalAPI;
-import dev.acecore.commonmodal.api.form.component.DropdownComponent;
-import dev.acecore.commonmodal.api.form.component.FormComponent;
-import dev.acecore.commonmodal.api.form.component.InputComponent;
-import dev.acecore.commonmodal.api.form.component.LabelComponent;
-import dev.acecore.commonmodal.api.form.component.SliderComponent;
-import dev.acecore.commonmodal.api.form.component.ToggleComponent;
+import dev.acecore.common_modal.api.CommonModalAPI;
+import dev.acecore.common_modal.api.form.component.DropdownComponent;
+import dev.acecore.common_modal.api.form.component.FormComponent;
+import dev.acecore.common_modal.api.form.component.InputComponent;
+import dev.acecore.common_modal.api.form.component.LabelComponent;
+import dev.acecore.common_modal.api.form.component.SliderComponent;
+import dev.acecore.common_modal.api.form.component.ToggleComponent;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package dev.acecore.commonmodal.api.form.component;
+package dev.acecore.common_modal.api.form.component;
 
 import java.util.Objects;
 
