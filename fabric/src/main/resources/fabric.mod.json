@@ -10,14 +10,8 @@
   "icon": "assets/commonmodal/icon.png",
   "environment": "client",
   "entrypoints": {
-    "fabric-datagen": [
-      "dev.acecore.commonmodal.client.CommonmodalDataGenerator"
-    ],
     "client": [
       "dev.acecore.commonmodal.client.CommonmodalClient"
-    ],
-    "main": [
-      "dev.acecore.commonmodal.Commonmodal"
     ]
   },
   "mixins": [

@@ -32,3 +32,4 @@ target/*
 
 plan.md
 plugin-spec.md
+DECISIONS.md
