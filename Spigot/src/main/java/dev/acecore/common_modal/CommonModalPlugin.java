@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.acecore.common_modal.api.CommonModalAPI;
+import dev.acecore.common_modal.api.ModalCheckerAPI;
 import dev.acecore.common_modal.listener.PlayerListener;
 import dev.acecore.common_modal.protocol.CommonModalChannels;
 import dev.acecore.common_modal.protocol.FormCodec;
@@ -32,10 +33,12 @@ public final class CommonModalPlugin extends JavaPlugin implements PluginMessage
         CommonModalAPI.initialize(this);
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, CommonModalChannels.FORM);
+        getServer().getMessenger().registerOutgoingPluginChannel(this, CommonModalChannels.CHECK);
         getServer().getMessenger().registerIncomingPluginChannel(this, CommonModalChannels.RESPONSE, this);
+        getServer().getMessenger().registerIncomingPluginChannel(this, CommonModalChannels.CHECK_RESPONSE, this);
 
         PluginManager pluginManager = getServer().getPluginManager();
-        pluginManager.registerEvents(new PlayerListener(), this);
+        pluginManager.registerEvents(new PlayerListener(this), this);
 
         getLogger().info("commonModal enabled.");
     }
@@ -44,19 +47,28 @@ public final class CommonModalPlugin extends JavaPlugin implements PluginMessage
     public void onDisable() {
         getServer().getScheduler().cancelTasks(this);
         CommonModalAPI.shutdown();
+        ModalCheckerAPI.clear();
 
         getServer().getMessenger().unregisterOutgoingPluginChannel(this, CommonModalChannels.FORM);
+        getServer().getMessenger().unregisterOutgoingPluginChannel(this, CommonModalChannels.CHECK);
         getServer().getMessenger().unregisterIncomingPluginChannel(this, CommonModalChannels.RESPONSE, this);
+        getServer().getMessenger().unregisterIncomingPluginChannel(this, CommonModalChannels.CHECK_RESPONSE, this);
 
         getLogger().info("commonModal disabled.");
     }
 
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if (!CommonModalChannels.RESPONSE.equals(channel)) {
+        if (CommonModalChannels.RESPONSE.equals(channel)) {
+            handleFormResponse(player, message);
             return;
         }
+        if (CommonModalChannels.CHECK_RESPONSE.equals(channel)) {
+            handleCheckResponse(player, message);
+        }
+    }
 
+    private void handleFormResponse(Player player, byte[] message) {
         try {
             String json = new String(message, StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
@@ -66,6 +78,19 @@ public final class CommonModalPlugin extends JavaPlugin implements PluginMessage
             CommonModalAPI.handleResponse(player, id, value);
         } catch (Exception e) {
             getLogger().log(Level.WARNING, "Failed to decode commonmodal:response: " + e.getMessage(), e);
+        }
+    }
+
+    private void handleCheckResponse(Player player, byte[] message) {
+        try {
+            String json = new String(message, StandardCharsets.UTF_8);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            int version = root.get("version").getAsInt();
+            if (version == ModalCheckerAPI.API_VERSION) {
+                ModalCheckerAPI.addModalPlayer(player);
+            }
+        } catch (Exception e) {
+            getLogger().log(Level.WARNING, "Failed to decode commonmodal:check_response: " + e.getMessage(), e);
         }
     }
 }

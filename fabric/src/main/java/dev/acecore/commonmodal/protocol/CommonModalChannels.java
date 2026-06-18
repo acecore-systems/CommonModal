@@ -20,6 +20,14 @@ public final class CommonModalChannels {
     public static final String RESPONSE_PATH = "response";
     public static final String RESPONSE = NAMESPACE + ":" + RESPONSE_PATH;
 
+    /** サーバー → クライアント: 導入チェック要求。 */
+    public static final String CHECK_PATH = "check";
+    public static final String CHECK = NAMESPACE + ":" + CHECK_PATH;
+
+    /** クライアント → サーバー: 導入チェック応答（API バージョン）。 */
+    public static final String CHECK_RESPONSE_PATH = "check_response";
+    public static final String CHECK_RESPONSE = NAMESPACE + ":" + CHECK_RESPONSE_PATH;
+
     private CommonModalChannels() {
         throw new UnsupportedOperationException("constants");
     }

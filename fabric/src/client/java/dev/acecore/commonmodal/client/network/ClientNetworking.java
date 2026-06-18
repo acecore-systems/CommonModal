@@ -1,5 +1,6 @@
 package dev.acecore.commonmodal.client.network;
 
+import com.google.gson.JsonObject;
 import dev.acecore.commonmodal.protocol.CommonModalChannels;
 import dev.acecore.commonmodal.protocol.FormCodec;
 import dev.acecore.commonmodal.protocol.FormPayload;
@@ -76,6 +77,48 @@ public final class ClientNetworking {
         }
     }
 
+    /** 受信: サーバー → クライアントの導入チェック要求ペイロード。 */
+    public record CheckCustomPayload(String json) implements CustomPacketPayload {
+        public static final Identifier PAYLOAD_ID =
+                Identifier.fromNamespaceAndPath(CommonModalChannels.NAMESPACE, CommonModalChannels.CHECK_PATH);
+
+        public static final CustomPacketPayload.Type<CheckCustomPayload> TYPE =
+                new CustomPacketPayload.Type<>(PAYLOAD_ID);
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, CheckCustomPayload> CODEC =
+                StreamCodec.composite(
+                        ByteBufCodecs.stringUtf8(32767),
+                        CheckCustomPayload::json,
+                        CheckCustomPayload::new
+                );
+
+        @Override
+        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    /** 送信: クライアント → サーバーの導入チェック応答ペイロード。 */
+    public record CheckResponseCustomPayload(String json) implements CustomPacketPayload {
+        public static final Identifier PAYLOAD_ID =
+                Identifier.fromNamespaceAndPath(CommonModalChannels.NAMESPACE, CommonModalChannels.CHECK_RESPONSE_PATH);
+
+        public static final CustomPacketPayload.Type<CheckResponseCustomPayload> TYPE =
+                new CustomPacketPayload.Type<>(PAYLOAD_ID);
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, CheckResponseCustomPayload> CODEC =
+                StreamCodec.composite(
+                        ByteBufCodecs.stringUtf8(32767),
+                        CheckResponseCustomPayload::json,
+                        CheckResponseCustomPayload::new
+                );
+
+        @Override
+        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private ClientNetworking() {
     }
 
@@ -85,6 +128,8 @@ public final class ClientNetworking {
         // 公式ドキュメントに基づき、最新のメソッド名に修正
         PayloadTypeRegistry.clientboundPlay().register(FormCustomPayload.TYPE, FormCustomPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ResponseCustomPayload.TYPE, ResponseCustomPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(CheckCustomPayload.TYPE, CheckCustomPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(CheckResponseCustomPayload.TYPE, CheckResponseCustomPayload.CODEC);
 
         // 受信ハンドラ
         ClientPlayNetworking.registerGlobalReceiver(FormCustomPayload.TYPE, (payload, context) -> {
@@ -95,12 +140,24 @@ public final class ClientNetworking {
                 System.err.println("[commonModal] Failed to decode form payload: " + e.getMessage());
             }
         });
+
+        // 導入チェック要求受信ハンドラ
+        ClientPlayNetworking.registerGlobalReceiver(CheckCustomPayload.TYPE, (payload, context) -> {
+            context.client().execute(ClientNetworking::sendCheckResponse);
+        });
     }
 
     /** サーバーへ応答を送信する。 */
     public static void sendResponse(ResponsePayload payload) {
         String json = FormCodec.encodeResponse(payload);
         ClientPlayNetworking.send(new ResponseCustomPayload(json));
+    }
+
+    /** サーバーへ導入チェック応答（API バージョン 1）を送信する。 */
+    public static void sendCheckResponse() {
+        JsonObject root = new JsonObject();
+        root.addProperty("version", 1);
+        ClientPlayNetworking.send(new CheckResponseCustomPayload(root.toString()));
     }
 
     /** フォーム受信時に呼び出されるコールバック。 */

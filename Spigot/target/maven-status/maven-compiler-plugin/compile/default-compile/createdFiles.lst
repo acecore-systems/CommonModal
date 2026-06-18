@@ -23,4 +23,5 @@ dev\acecore\common_modal\api\form\component\FormComponent.class
 dev\acecore\common_modal\api\form\SimpleForm$Button.class
 dev\acecore\common_modal\api\form\FormImage$Type.class
 dev\acecore\common_modal\api\form\ModalForm.class
+dev\acecore\common_modal\api\ModalCheckerAPI.class
 dev\acecore\common_modal\protocol\FormCodec.class
