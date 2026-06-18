@@ -1,8 +1,8 @@
 package dev.acecore.commonmodal.client.screen;
 
 import dev.acecore.commonmodal.api.form.Form;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 
 /**
  * 受信した {@link Form} に応じた {@link Screen} を生成するファクトリ。
@@ -23,7 +23,7 @@ public final class CommonModalScreens {
      * @param form      表示対象のフォーム定義
      * @param callbacks 決定・キャンセル時の応答コールバック
      */
-    public static void open(MinecraftClient client, int formId, Form form, FormCallbacks callbacks) {
+    public static void open(Minecraft client, int formId, Form form, FormCallbacks callbacks) {
         Screen screen = createScreen(formId, form, callbacks);
         client.setScreen(screen);
     }

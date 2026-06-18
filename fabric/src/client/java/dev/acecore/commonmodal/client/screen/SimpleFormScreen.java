@@ -2,25 +2,19 @@ package dev.acecore.commonmodal.client.screen;
 
 import dev.acecore.commonmodal.api.form.Form;
 import dev.acecore.commonmodal.api.form.SimpleForm;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.texture.AbstractTexture;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * ボタンリスト (Simple Form) を描画する {@link Screen}。
- * <p>
- * plan.md §4.2 に基づく。画面上部にタイトル・コンテンツを表示し、その下に
- * 縦一列のボタンを配置。ボタン数が多い場合はスクロール対応する。
- * 各ボタンにはオプションで画像アイコンを左側に表示する。
- */
 public final class SimpleFormScreen extends Screen {
     private final int formId;
     private final SimpleForm form;
@@ -39,7 +33,7 @@ public final class SimpleFormScreen extends Screen {
     private boolean dragging = false;
 
     public SimpleFormScreen(int formId, Form form, CommonModalScreens.FormCallbacks callbacks) {
-        super(Text.literal(form.getTitle()));
+        super(Component.literal(form.getTitle()));
         this.formId = formId;
         this.form = (SimpleForm) form;
         this.callbacks = callbacks;
@@ -70,29 +64,25 @@ public final class SimpleFormScreen extends Screen {
     }
 
     @Override
-    public void resize(MinecraftClient client, int width, int height) {
-        super.resize(client, width, height);
+    public void resize(int width, int height) {
+        super.resize(width, height);
         recalculateLayout();
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
-        super.render(context, mouseX, mouseY, delta);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
 
-        // タイトル
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, 0xFFFFFF);
+        graphics.centeredText(this.font, this.title, this.width / 2, 20, 0xFFFFFFFF);
 
-        // コンテンツ
         int y = contentTop - 20;
         if (form.getContent() != null && !form.getContent().isEmpty()) {
             for (String line : wrapText(form.getContent(), CONTENT_WIDTH)) {
-                context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(line), this.width / 2, y, 0xAAAAAA);
-                y += this.textRenderer.fontHeight + 2;
+                graphics.centeredText(this.font, Component.literal(line), this.width / 2, y, 0xFF_AA_AA_AA);
+                y += this.font.lineHeight + 2;
             }
         }
 
-        // ボタンエリアのクリッピング表示
         int startX = (this.width - CONTENT_WIDTH) / 2;
         int buttonY = contentTop - (int) scroll;
 
@@ -101,50 +91,51 @@ public final class SimpleFormScreen extends Screen {
                     && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
             int color = hovered ? 0xFF_AA_AA_AA : 0xFF_88_88_88;
 
-            // ボタン背景
-            context.fill(startX, buttonY, startX + CONTENT_WIDTH, buttonY + BUTTON_HEIGHT, 0xFF_22_22_22);
-            context.fill(startX + 1, buttonY + 1, startX + CONTENT_WIDTH - 1, buttonY + BUTTON_HEIGHT - 1, color);
+            graphics.fill(startX, buttonY, startX + CONTENT_WIDTH, buttonY + BUTTON_HEIGHT, 0xFF_22_22_22);
+            graphics.fill(startX + 1, buttonY + 1, startX + CONTENT_WIDTH - 1, buttonY + BUTTON_HEIGHT - 1, color);
 
-            // アイコン
             int textX = startX + 8;
             Identifier icon = state.imageFuture.getNow(null);
             if (icon != null) {
-                renderIcon(context, icon, startX + 4, buttonY + (BUTTON_HEIGHT - ICON_SIZE) / 2);
+                renderIcon(graphics, icon, startX + 4, buttonY + (BUTTON_HEIGHT - ICON_SIZE) / 2);
                 textX = startX + 8 + ICON_SIZE + ICON_PADDING;
             }
 
-            // テキスト
             String text = state.button.getText();
-            int textWidth = this.textRenderer.getWidth(text);
+            int textWidth = this.font.width(text);
             if (textWidth > CONTENT_WIDTH - (textX - startX) - 8) {
                 text = truncateText(text, CONTENT_WIDTH - (textX - startX) - 12);
             }
-            context.drawTextWithShadow(this.textRenderer, Text.literal(text), textX,
-                    buttonY + (BUTTON_HEIGHT - this.textRenderer.fontHeight) / 2, 0xFFFFFF);
+
+            graphics.text(this.font, Component.literal(text), textX,
+                    buttonY + (BUTTON_HEIGHT - this.font.lineHeight) / 2, 0xFFFFFFFF, true);
 
             buttonY += BUTTON_HEIGHT + 4;
         }
 
-        // スクロールバー
         if (maxScroll > 0) {
             int barHeight = Math.max(16, (contentBottom - contentTop) * (contentBottom - contentTop) / (maxScroll + (contentBottom - contentTop)));
             int barY = contentTop + (int) ((contentBottom - contentTop - barHeight) * scroll / (double) maxScroll);
             int barX = (this.width + CONTENT_WIDTH) / 2 + 4;
-            context.fill(barX, contentTop, barX + 6, contentBottom, 0x44_00_00_00);
-            context.fill(barX, barY, barX + 6, barY + barHeight, 0xFF_CC_CC_CC);
+            graphics.fill(barX, contentTop, barX + 6, contentBottom, 0x44_00_00_00);
+            graphics.fill(barX, barY, barX + 6, barY + barHeight, 0xFF_CC_CC_CC);
         }
     }
 
-    private void renderIcon(DrawContext context, Identifier texture, int x, int y) {
-        AbstractTexture textureObj = MinecraftClient.getInstance().getTextureManager().getTexture(texture);
+    private void renderIcon(GuiGraphicsExtractor graphics, Identifier texture, int x, int y) {
+        AbstractTexture textureObj = Minecraft.getInstance().getTextureManager().getTexture(texture);
         if (textureObj == null) {
             return;
         }
-        context.drawTexture(texture, x, y, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
+
         if (button == 0 && maxScroll > 0) {
             int barX = (this.width + CONTENT_WIDTH) / 2 + 4;
             int barHeight = Math.max(16, (contentBottom - contentTop) * (contentBottom - contentTop) / (maxScroll + (contentBottom - contentTop)));
@@ -168,34 +159,40 @@ public final class SimpleFormScreen extends Screen {
             }
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
         dragging = false;
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+
         if (dragging && maxScroll > 0) {
             int barHeight = Math.max(16, (contentBottom - contentTop) * (contentBottom - contentTop) / (maxScroll + (contentBottom - contentTop)));
             int trackHeight = contentBottom - contentTop - barHeight;
             scroll = Math.clamp((mouseY - contentTop - barHeight / 2.0) * maxScroll / (double) trackHeight, 0.0, (double) maxScroll);
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(event, deltaX, deltaY);
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (verticalAmount != 0) {
-            scroll = Math.clamp(scroll - verticalAmount * BUTTON_HEIGHT, 0.0, (double) maxScroll);
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        // event.verticalAmount() の代わりに、引数の scrollY をそのまま使用します
+        if (scrollY != 0) {
+            // Mth.clamp は Mojmap での数値クランプクラス（バニラの算術ユーティリティ）です
+            this.scroll = net.minecraft.util.Mth.clamp(this.scroll - scrollY * BUTTON_HEIGHT, 0.0, (double) maxScroll);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
+
 
     @Override
     public boolean shouldCloseOnEsc() {
@@ -203,15 +200,15 @@ public final class SimpleFormScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         finish(null);
     }
 
     private void finish(Integer value) {
-        if (this.client == null) {
+        if (this.minecraft == null) {
             return;
         }
-        this.client.setScreen(null);
+        this.minecraft.setScreen(null);
         callbacks.onResult(formId, value);
     }
 
@@ -223,7 +220,7 @@ public final class SimpleFormScreen extends Screen {
         StringBuilder current = new StringBuilder();
         for (String word : text.split(" ")) {
             String test = current.isEmpty() ? word : current + " " + word;
-            if (this.textRenderer.getWidth(test) > maxWidth && !current.isEmpty()) {
+            if (this.font.width(test) > maxWidth && !current.isEmpty()) {
                 lines.add(current.toString());
                 current = new StringBuilder(word);
             } else {
@@ -241,12 +238,12 @@ public final class SimpleFormScreen extends Screen {
 
     private String truncateText(String text, int maxWidth) {
         String ellipsis = "...";
-        int max = maxWidth - this.textRenderer.getWidth(ellipsis);
+        int max = maxWidth - this.font.width(ellipsis);
         if (max <= 0) {
             return ellipsis;
         }
         int i = text.length();
-        while (i > 0 && this.textRenderer.getWidth(text.substring(0, i)) > max) {
+        while (i > 0 && this.font.width(text.substring(0, i)) > max) {
             i--;
         }
         return text.substring(0, i) + ellipsis;

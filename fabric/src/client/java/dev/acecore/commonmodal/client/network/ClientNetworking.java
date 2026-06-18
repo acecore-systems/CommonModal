@@ -4,54 +4,75 @@ import dev.acecore.commonmodal.protocol.CommonModalChannels;
 import dev.acecore.commonmodal.protocol.FormCodec;
 import dev.acecore.commonmodal.protocol.FormPayload;
 import dev.acecore.commonmodal.protocol.ResponsePayload;
+import io.netty.buffer.ByteBuf;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * クライアント側の commonModal ネットワーク設定。
- * <p>
- * plan.md §4 / §5 に基づき、以下を行う。
- * <ul>
- *   <li>{@code commonmodal:form} チャネルの受信ハンドラ登録</li>
- *   <li>{@code commonmodal:response} チャネルの送信</li>
- * </ul>
- * Fabric Loom の splitEnvironment においてクライアント専用ソースセットに配置。
- */
 public final class ClientNetworking {
 
+    // 26.xのマッピングに準拠した基本的なByteBuf用Codec
+    private static final StreamCodec<ByteBuf, String> UTF8_STRING_CODEC = StreamCodec.ofMember(
+            (value, buf) -> {
+                byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+                ByteBufCodecs.VAR_INT.encode(buf, bytes.length);
+                buf.writeBytes(bytes);
+            },
+            buf -> {
+                int length = ByteBufCodecs.VAR_INT.decode(buf);
+                byte[] bytes = new byte[length];
+                buf.readBytes(bytes);
+                return new String(bytes, StandardCharsets.UTF_8);
+            }
+    );
+
     /** 受信: サーバー → クライアントのフォーム表示要求ペイロード。 */
-    public record FormCustomPayload(String json) implements CustomPayload {
-        public static final CustomPayload.Id<FormCustomPayload> ID =
-                new CustomPayload.Id<>(Identifier.of(CommonModalChannels.FORM));
-        public static final PacketCodec<RegistryByteBuf, FormCustomPayload> CODEC =
-                PacketCodec.of(
-                        (value, buf) -> writeUtf8(buf, value.json()),
-                        buf -> new FormCustomPayload(readUtf8(buf)));
+    public record FormCustomPayload(String json) implements CustomPacketPayload {
+        public static final Identifier PAYLOAD_ID =
+                Identifier.fromNamespaceAndPath(CommonModalChannels.NAMESPACE, CommonModalChannels.FORM_PATH);
+
+        public static final CustomPacketPayload.Type<FormCustomPayload> TYPE =
+                new CustomPacketPayload.Type<>(PAYLOAD_ID);
+
+        // 🟢 ByteBufCodecs.STRING を使用（デフォルトでVarIntの長さプレフィックスが付きます）
+        public static final StreamCodec<RegistryFriendlyByteBuf, FormCustomPayload> CODEC =
+                StreamCodec.composite(
+                        ByteBufCodecs.stringUtf8(32767),
+                        FormCustomPayload::json,
+                        FormCustomPayload::new
+                );
 
         @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
+        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+            return TYPE;
         }
     }
 
     /** 送信: クライアント → サーバーの応答ペイロード。 */
-    public record ResponseCustomPayload(String json) implements CustomPayload {
-        public static final CustomPayload.Id<ResponseCustomPayload> ID =
-                new CustomPayload.Id<>(Identifier.of(CommonModalChannels.RESPONSE));
-        public static final PacketCodec<RegistryByteBuf, ResponseCustomPayload> CODEC =
-                PacketCodec.of(
-                        (value, buf) -> writeUtf8(buf, value.json()),
-                        buf -> new ResponseCustomPayload(readUtf8(buf)));
+    public record ResponseCustomPayload(String json) implements CustomPacketPayload {
+        public static final Identifier PAYLOAD_ID =
+                Identifier.fromNamespaceAndPath(CommonModalChannels.NAMESPACE, CommonModalChannels.RESPONSE_PATH);
+
+        public static final CustomPacketPayload.Type<ResponseCustomPayload> TYPE =
+                new CustomPacketPayload.Type<>(PAYLOAD_ID);
+
+        // 🟢 こちらも同様に修正
+        public static final StreamCodec<RegistryFriendlyByteBuf, ResponseCustomPayload> CODEC =
+                StreamCodec.composite(
+                        ByteBufCodecs.stringUtf8(32767),
+                        ResponseCustomPayload::json,
+                        ResponseCustomPayload::new
+                );
 
         @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
+        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+            return TYPE;
         }
     }
 
@@ -59,12 +80,14 @@ public final class ClientNetworking {
     }
 
     /** クライアント初期化時に呼び出し、チャネル登録と受信ハンドラを設定する。 */
+    /** クライアント初期化時に呼び出し、チャネル登録と受信ハンドラを設定する。 */
     public static void register(FormReceiver receiver) {
-        // ペイロード型の登録 (受信 S2C / 送信 C2S)
-        PayloadTypeRegistry.playS2C().register(FormCustomPayload.ID, FormCustomPayload.CODEC);
+        // 公式ドキュメントに基づき、最新のメソッド名に修正
+        PayloadTypeRegistry.clientboundPlay().register(FormCustomPayload.TYPE, FormCustomPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ResponseCustomPayload.TYPE, ResponseCustomPayload.CODEC);
 
         // 受信ハンドラ
-        ClientPlayNetworking.registerGlobalReceiver(FormCustomPayload.ID, (payload, context) -> {
+        ClientPlayNetworking.registerGlobalReceiver(FormCustomPayload.TYPE, (payload, context) -> {
             try {
                 FormPayload formPayload = FormCodec.decodeForm(payload.json());
                 context.client().execute(() -> receiver.onFormReceived(formPayload));
@@ -74,7 +97,7 @@ public final class ClientNetworking {
         });
     }
 
-    /** {@code commonmodal:response} チャンネルでサーバーへ応答を送信する。 */
+    /** サーバーへ応答を送信する。 */
     public static void sendResponse(ResponsePayload payload) {
         String json = FormCodec.encodeResponse(payload);
         ClientPlayNetworking.send(new ResponseCustomPayload(json));
@@ -84,20 +107,5 @@ public final class ClientNetworking {
     @FunctionalInterface
     public interface FormReceiver {
         void onFormReceived(FormPayload payload);
-    }
-
-    // ---- エンコーディングヘルパー ----
-
-    private static void writeUtf8(RegistryByteBuf buf, String value) {
-        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        buf.writeVarInt(bytes.length);
-        buf.writeBytes(bytes);
-    }
-
-    private static String readUtf8(RegistryByteBuf buf) {
-        int length = buf.readVarInt();
-        byte[] bytes = new byte[length];
-        buf.readBytes(bytes);
-        return new String(bytes, StandardCharsets.UTF_8);
     }
 }

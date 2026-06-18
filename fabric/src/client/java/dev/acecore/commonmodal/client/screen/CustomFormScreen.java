@@ -8,25 +8,25 @@ import dev.acecore.commonmodal.api.form.component.InputComponent;
 import dev.acecore.commonmodal.api.form.component.LabelComponent;
 import dev.acecore.commonmodal.api.form.component.SliderComponent;
 import dev.acecore.commonmodal.api.form.component.ToggleComponent;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CheckboxWidget;
-import net.minecraft.client.gui.widget.PressableWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractButton;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.InputWithModifiers; // 追加
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
  * 複合入力フォーム (Custom Form) を描画する {@link Screen}。
- * <p>
- * plan.md §4.3 に基づく。縦に並ぶ複数の入力コンポーネントをスクロール可能な
- * パネル内に配置し、最下部に「送信」ボタンを配置する。
  */
 public final class CustomFormScreen extends Screen {
     private final int formId;
@@ -48,7 +48,7 @@ public final class CustomFormScreen extends Screen {
     private boolean dragging = false;
 
     public CustomFormScreen(int formId, Form form, CommonModalScreens.FormCallbacks callbacks) {
-        super(Text.literal(form.getTitle()));
+        super(Component.literal(form.getTitle()));
         this.formId = formId;
         this.form = (CustomForm) form;
         this.callbacks = callbacks;
@@ -66,16 +66,16 @@ public final class CustomFormScreen extends Screen {
 
         int submitX = (this.width - CONTENT_WIDTH) / 2;
         int submitY = this.height - 32;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("送信"), btn -> submit())
-                .dimensions(submitX, submitY, CONTENT_WIDTH, SUBMIT_HEIGHT)
+        this.addRenderableWidget(Button.builder(Component.literal("送信"), btn -> submit())
+                .bounds(submitX, submitY, CONTENT_WIDTH, SUBMIT_HEIGHT)
                 .build());
 
         recalculateLayout();
     }
 
     @Override
-    public void resize(MinecraftClient client, int width, int height) {
-        super.resize(client, width, height);
+    public void resize(int width, int height) {
+        super.resize(width, height);
         init();
     }
 
@@ -83,7 +83,7 @@ public final class CustomFormScreen extends Screen {
         int total = calculateTotalHeight();
         int visible = contentBottom - contentTop;
         maxScroll = Math.max(0, total - visible);
-        scroll = Math.clamp(scroll, 0.0, (double) maxScroll);
+        scroll = Mth.clamp(scroll, 0.0, (double) maxScroll);
     }
 
     private int calculateTotalHeight() {
@@ -97,51 +97,48 @@ public final class CustomFormScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
-        super.render(context, mouseX, mouseY, delta);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
 
-        // タイトル
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, 0xFFFFFF);
+        graphics.centeredText(this.font, this.title, this.width / 2, 20, 0xFFFFFF);
 
         int startX = (this.width - CONTENT_WIDTH) / 2;
         int y = contentTop - (int) scroll;
 
         for (ComponentState<?> state : componentStates) {
-            // ラベルテキスト
             String label = state.label();
             if (label != null && !label.isEmpty()) {
-                context.drawTextWithShadow(this.textRenderer, Text.literal(label), startX, y, 0xFFFFFF);
-                y += this.textRenderer.fontHeight + LABEL_GAP;
+                graphics.text(this.font, Component.literal(label), startX, y, 0xFFFFFF, true);
+                y += this.font.lineHeight + LABEL_GAP;
             }
 
-            // 入力 UI
-            state.render(context, startX, y, mouseX, mouseY);
+            state.render(graphics, startX, y, mouseX, mouseY, delta);
             y += state.height() + COMPONENT_GAP;
         }
 
-        // スクロールバー
         if (maxScroll > 0) {
             int visible = contentBottom - contentTop;
             int barHeight = Math.max(16, visible * visible / (maxScroll + visible));
             int barY = contentTop + (int) ((visible - barHeight) * scroll / maxScroll);
             int barX = startX + CONTENT_WIDTH + 6;
-            context.fill(barX, contentTop, barX + SCROLLBAR_WIDTH, contentBottom, 0x44_00_00_00);
-            context.fill(barX, barY, barX + SCROLLBAR_WIDTH, barY + barHeight, 0xFF_CC_CC_CC);
+            graphics.fill(barX, contentTop, barX + SCROLLBAR_WIDTH, contentBottom, 0x44_00_00_00);
+            graphics.fill(barX, barY, barX + SCROLLBAR_WIDTH, barY + barHeight, 0xFF_CC_CC_CC);
         }
     }
 
     @Override
-    protected void clearChildren() {
-        super.clearChildren();
+    protected void clearWidgets() {
+        super.clearWidgets();
         for (ComponentState<?> state : componentStates) {
             state.onClearChildren();
         }
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && maxScroll > 0) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (event.button() == 0 && maxScroll > 0) {
             int startX = (this.width - CONTENT_WIDTH) / 2;
             int visible = contentBottom - contentTop;
             int barHeight = Math.max(16, visible * visible / (maxScroll + visible));
@@ -154,61 +151,63 @@ public final class CustomFormScreen extends Screen {
         }
 
         for (ComponentState<?> state : componentStates) {
-            if (state.mouseClicked(mouseX, mouseY, button)) {
+            if (state.mouseClicked(event, doubleClick)) { // 引数を修正
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
         dragging = false;
         for (ComponentState<?> state : componentStates) {
-            state.mouseReleased(mouseX, mouseY, button);
+            state.mouseReleased(event);
         }
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        double mouseY = event.y();
+
         if (dragging && maxScroll > 0) {
-            int visible = contentBottom - contentTop;
-            int barHeight = Math.max(16, visible * visible / (maxScroll + visible));
-            int trackHeight = visible - barHeight;
+            int barHeight = Math.max(16, (contentBottom - contentTop) * (contentBottom - contentTop) / (maxScroll + (contentBottom - contentTop)));
+            int trackHeight = contentBottom - contentTop - barHeight;
             scroll = Math.clamp((mouseY - contentTop - barHeight / 2.0) * maxScroll / (double) trackHeight, 0.0, (double) maxScroll);
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(event, deltaX, deltaY);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (verticalAmount != 0) {
-            scroll = Math.clamp(scroll - verticalAmount * FIELD_HEIGHT, 0.0, (double) maxScroll);
+            scroll = Mth.clamp(scroll - verticalAmount * FIELD_HEIGHT, 0.0, (double) maxScroll);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
         for (ComponentState<?> state : componentStates) {
-            if (state.keyPressed(keyCode, scanCode, modifiers)) {
+            if (state.keyPressed(event)) {
                 return true;
             }
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
-    public boolean charTyped(char chr, int modifiers) {
+    public boolean charTyped(CharacterEvent event) {
         for (ComponentState<?> state : componentStates) {
-            if (state.charTyped(chr, modifiers)) {
+            if (state.charTyped(event)) {
                 return true;
             }
         }
-        return super.charTyped(chr, modifiers);
+        return super.charTyped(event);
     }
 
     @Override
@@ -217,7 +216,7 @@ public final class CustomFormScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         finish(null);
     }
 
@@ -230,15 +229,14 @@ public final class CustomFormScreen extends Screen {
     }
 
     private void finish(Object value) {
-        if (this.client == null) {
+        if (this.minecraft == null) {
             return;
         }
-        this.client.setScreen(null);
+        this.minecraft.setScreen(null);
         callbacks.onResult(formId, value);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private ComponentState<?> createState(FormComponent component) {
+    ComponentState<?> createState(FormComponent component) {
         if (component instanceof LabelComponent c) {
             return new LabelState(c);
         }
@@ -260,33 +258,32 @@ public final class CustomFormScreen extends Screen {
     // ====== Component State Abstraction ======
 
     private abstract class ComponentState<T> {
-        void onClearChildren() {
-        }
+        void onClearChildren() {}
+
         abstract String label();
 
         abstract int height();
 
         abstract int labelHeight();
 
-        abstract void render(DrawContext context, int x, int y, int mouseX, int mouseY);
+        abstract void render(GuiGraphicsExtractor graphics, int x, int y, int mouseX, int mouseY, float partialTick);
 
-        abstract boolean mouseClicked(double mouseX, double mouseY, int button);
+        abstract boolean mouseClicked(MouseButtonEvent event, boolean doubleClick); // 引数を変更
 
-        void mouseReleased(double mouseX, double mouseY, int button) {
-        }
+        void mouseReleased(MouseButtonEvent event) {}
 
-        boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        boolean keyPressed(KeyEvent event) {
             return false;
         }
 
-        boolean charTyped(char chr, int modifiers) {
+        boolean charTyped(CharacterEvent event) {
             return false;
         }
 
         abstract T getValue();
     }
 
-    private class LabelState extends ComponentState<Void> {
+    private class LabelState extends ComponentState<String> {
         private final LabelComponent component;
 
         LabelState(LabelComponent component) {
@@ -305,27 +302,26 @@ public final class CustomFormScreen extends Screen {
 
         @Override
         int labelHeight() {
-            return CustomFormScreen.this.textRenderer.fontHeight + LABEL_GAP;
+            return CustomFormScreen.this.font.lineHeight + LABEL_GAP;
         }
 
         @Override
-        void render(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        }
+        void render(GuiGraphicsExtractor graphics, int x, int y, int mouseX, int mouseY, float partialTick) {}
 
         @Override
-        boolean mouseClicked(double mouseX, double mouseY, int button) {
+        boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
             return false;
         }
 
         @Override
-        Void getValue() {
+        String getValue() {
             return null;
         }
     }
 
     private class InputState extends ComponentState<String> {
         private final InputComponent component;
-        private TextFieldWidget field;
+        private EditBox field;
 
         InputState(InputComponent component) {
             this.component = component;
@@ -333,6 +329,9 @@ public final class CustomFormScreen extends Screen {
 
         @Override
         void onClearChildren() {
+            if (field != null) {
+                removeWidget(field);
+            }
             field = null;
         }
 
@@ -348,45 +347,55 @@ public final class CustomFormScreen extends Screen {
 
         @Override
         int labelHeight() {
-            return component.getText().isEmpty() ? 0 : CustomFormScreen.this.textRenderer.fontHeight + LABEL_GAP;
+            return component.getText().isEmpty() ? 0 : CustomFormScreen.this.font.lineHeight + LABEL_GAP;
         }
 
         @Override
-        void render(DrawContext context, int x, int y, int mouseX, int mouseY) {
+        void render(GuiGraphicsExtractor graphics, int x, int y, int mouseX, int mouseY, float partialTick) {
             if (field == null) {
-                field = new TextFieldWidget(CustomFormScreen.this.textRenderer, x, y, CONTENT_WIDTH, FIELD_HEIGHT,
-                        Text.literal(""));
-                field.setPlaceholder(Text.literal(component.getPlaceholder()));
-                field.setText(component.getDefault());
-                addDrawableChild(field);
+                field = new EditBox(CustomFormScreen.this.font, x, y, CONTENT_WIDTH, FIELD_HEIGHT, Component.literal(""));
+                field.setHint(Component.literal(component.getPlaceholder()));
+                field.setValue(component.getDefault());
+                addRenderableWidget(field);
+            } else {
+                field.setX(x);
+                field.setY(y);
             }
         }
 
         @Override
-        boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return field != null && field.mouseClicked(mouseX, mouseY, button);
+        boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (field != null) {
+                if (field.isMouseOver(event.x(), event.y())) {
+                    field.setFocused(true);
+                    return field.mouseClicked(event, doubleClick); // 第2引数を追加
+                } else {
+                    field.setFocused(false);
+                }
+            }
+            return false;
         }
 
         @Override
-        boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            return field != null && field.keyPressed(keyCode, scanCode, modifiers);
+        boolean keyPressed(KeyEvent event) {
+            return field != null && field.isFocused() && field.keyPressed(event);
         }
 
         @Override
-        boolean charTyped(char chr, int modifiers) {
-            return field != null && field.charTyped(chr, modifiers);
+        boolean charTyped(CharacterEvent event) {
+            return field != null && field.isFocused() && field.charTyped(event);
         }
 
         @Override
         String getValue() {
-            return field == null ? component.getDefault() : field.getText();
+            return field == null ? component.getDefault() : field.getValue();
         }
     }
 
     private class ToggleState extends ComponentState<Boolean> {
         private final ToggleComponent component;
         private boolean value;
-        private PressableWidget widget;
+        private AbstractButton widget;
 
         ToggleState(ToggleComponent component) {
             this.component = component;
@@ -414,31 +423,38 @@ public final class CustomFormScreen extends Screen {
         }
 
         @Override
-        void render(DrawContext context, int x, int y, int mouseX, int mouseY) {
+        void render(GuiGraphicsExtractor graphics, int x, int y, int mouseX, int mouseY, float partialTick) {
             if (widget == null) {
-                widget = new PressableWidget(x, y, FIELD_HEIGHT, FIELD_HEIGHT, Text.literal("")) {
+                widget = new AbstractButton(x, y, FIELD_HEIGHT, FIELD_HEIGHT, Component.literal("")) {
                     @Override
-                    public void onPress() {
+                    public void onPress(InputWithModifiers modifiers) {
                         value = !value;
                     }
 
+                    // ★ 追加: ナレーション更新メソッドの実装
                     @Override
-                    protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-                        context.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0xFF_33_33_33);
+                    protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput narrationElementOutput) {
+                        // 必要に応じてナレーションを追加できますが、空でもコンパイルは通ります
+                        this.defaultButtonNarrationText(narrationElementOutput);
+                    }
+
+                    @Override
+                    protected void extractContents(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float delta) {
+                        extractor.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0xFF_33_33_33);
                         if (value) {
                             int pad = 4;
-                            context.fill(getX() + pad, getY() + pad,
+                            extractor.fill(getX() + pad, getY() + pad,
                                     getX() + getWidth() - pad, getY() + getHeight() - pad, 0xFF_55_FF_55);
                         }
                     }
                 };
-                addDrawableChild(widget);
+                addRenderableWidget(widget);
             }
         }
 
         @Override
-        boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return widget != null && widget.mouseClicked(mouseX, mouseY, button);
+        boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            return widget != null && widget.mouseClicked(event, doubleClick); // 引数を修正
         }
 
         @Override
@@ -449,10 +465,12 @@ public final class CustomFormScreen extends Screen {
 
     private class SliderState extends ComponentState<Double> {
         private final SliderComponent component;
-        private SliderWidget slider;
+        private AbstractSliderButton slider;
+        private double internalValue; // protectedの代わりに入力値を安全に保持する用
 
         SliderState(SliderComponent component) {
             this.component = component;
+            this.internalValue = (component.getDefault() - component.getMin()) / (component.getMax() - component.getMin());
         }
 
         @Override
@@ -472,47 +490,46 @@ public final class CustomFormScreen extends Screen {
 
         @Override
         int labelHeight() {
-            return CustomFormScreen.this.textRenderer.fontHeight + LABEL_GAP;
+            return CustomFormScreen.this.font.lineHeight + LABEL_GAP;
         }
 
         @Override
-        void render(DrawContext context, int x, int y, int mouseX, int mouseY) {
+        void render(GuiGraphicsExtractor graphics, int x, int y, int mouseX, int mouseY, float partialTick) {
             if (slider == null) {
-                double range = component.getMax() - component.getMin();
-                double initial = (component.getDefault() - component.getMin()) / range;
-                slider = new SliderWidget(x, y, CONTENT_WIDTH, FIELD_HEIGHT, Text.literal(""), initial) {
+                slider = new AbstractSliderButton(x, y, CONTENT_WIDTH, FIELD_HEIGHT, Component.literal(""), internalValue) {
                     @Override
                     protected void updateMessage() {
-                        setMessage(Text.literal(formatValue(value)));
+                        // 自身の内部のvalue変数を渡しメッセージを更新
+                        setMessage(Component.literal(formatValue(this.value)));
                     }
 
                     @Override
                     protected void applyValue() {
-                        // value が SliderWidget 内部で 0.0〜1.0 の値として保持される
+                        // スライダーが動いたとき、protectedの値を安全に退避
+                        SliderState.this.internalValue = this.value;
                     }
                 };
-                slider.updateMessage();
-                addDrawableChild(slider);
+                addRenderableWidget(slider);
             }
         }
 
         @Override
-        boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return slider != null && slider.mouseClicked(mouseX, mouseY, button);
+        boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            return slider != null && slider.mouseClicked(event, doubleClick); // 引数を修正
         }
 
         @Override
-        boolean mouseReleased(double mouseX, double mouseY, int button) {
-            return slider != null && slider.mouseReleased(mouseX, mouseY, button);
+        void mouseReleased(MouseButtonEvent event) {
+            if (slider != null) {
+                slider.mouseReleased(event);
+            }
         }
 
         @Override
         Double getValue() {
-            if (slider == null) {
-                return component.getDefault();
-            }
             double range = component.getMax() - component.getMin();
-            double raw = component.getMin() + slider.getValue() * range;
+            // 直接 slider.value を見ず、内部に同期しておいた値を計算に使用
+            double raw = component.getMin() + internalValue * range;
             double step = component.getStep();
             if (step > 0) {
                 raw = Math.round((raw - component.getMin()) / step) * step + component.getMin();
@@ -532,8 +549,8 @@ public final class CustomFormScreen extends Screen {
     private class DropdownState extends ComponentState<Integer> {
         private final DropdownComponent component;
         private int selected;
-        private PressableWidget leftButton;
-        private PressableWidget rightButton;
+        private AbstractButton leftButton;
+        private AbstractButton rightButton;
 
         DropdownState(DropdownComponent component) {
             this.component = component;
@@ -558,25 +575,24 @@ public final class CustomFormScreen extends Screen {
 
         @Override
         int labelHeight() {
-            return CustomFormScreen.this.textRenderer.fontHeight + LABEL_GAP;
+            return CustomFormScreen.this.font.lineHeight + LABEL_GAP;
         }
 
         @Override
-        void render(DrawContext context, int x, int y, int mouseX, int mouseY) {
+        void render(GuiGraphicsExtractor graphics, int x, int y, int mouseX, int mouseY, float partialTick) {
             if (leftButton == null) {
                 leftButton = new ArrowButton(x, y, FIELD_HEIGHT, FIELD_HEIGHT, false, this::previous);
                 rightButton = new ArrowButton(x + CONTENT_WIDTH - FIELD_HEIGHT, y, FIELD_HEIGHT, FIELD_HEIGHT, true, this::next);
-                addDrawableChild(leftButton);
-                addDrawableChild(rightButton);
+                addRenderableWidget(leftButton);
+                addRenderableWidget(rightButton);
             }
 
-            // 選択テキストを中央に描画
             List<String> options = component.getOptions();
             String text = options.isEmpty() ? "" : options.get(selected);
-            int textWidth = CustomFormScreen.this.textRenderer.getWidth(text);
+            int textWidth = CustomFormScreen.this.font.width(text);
             int textX = x + (CONTENT_WIDTH - textWidth) / 2;
-            int textY = y + (FIELD_HEIGHT - CustomFormScreen.this.textRenderer.fontHeight) / 2;
-            context.drawTextWithShadow(CustomFormScreen.this.textRenderer, Text.literal(text), textX, textY, 0xFFFFFF);
+            int textY = y + (FIELD_HEIGHT - CustomFormScreen.this.font.lineHeight) / 2;
+            graphics.text(CustomFormScreen.this.font, Component.literal(text), textX, textY, 0xFFFFFF, true);
         }
 
         private void previous() {
@@ -588,9 +604,9 @@ public final class CustomFormScreen extends Screen {
         }
 
         @Override
-        boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (leftButton != null && leftButton.mouseClicked(mouseX, mouseY, button)) return true;
-            return rightButton != null && rightButton.mouseClicked(mouseX, mouseY, button);
+        boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (leftButton != null && leftButton.mouseClicked(event, doubleClick)) return true;
+            return rightButton != null && rightButton.mouseClicked(event, doubleClick);
         }
 
         @Override
@@ -599,26 +615,32 @@ public final class CustomFormScreen extends Screen {
         }
     }
 
-    private static final class ArrowButton extends PressableWidget {
+    private static final class ArrowButton extends AbstractButton {
         private final boolean right;
         private final Runnable action;
 
         ArrowButton(int x, int y, int width, int height, boolean right, Runnable action) {
-            super(x, y, width, height, Text.literal(right ? ">" : "<"));
+            super(x, y, width, height, Component.literal(right ? ">" : "<"));
             this.right = right;
             this.action = action;
         }
 
         @Override
-        public void onPress() {
+        public void onPress(InputWithModifiers modifiers) {
             action.run();
         }
 
+        // ★ 追加: ナレーション更新メソッドの実装
         @Override
-        protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+        protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput narrationElementOutput) {
+            this.defaultButtonNarrationText(narrationElementOutput);
+        }
+
+        @Override
+        protected void extractContents(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float delta) {
             int bg = this.isHovered() ? 0xFF_AA_AA_AA : 0xFF_66_66_66;
-            context.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), bg);
-            context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, getMessage(),
+            extractor.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), bg);
+            extractor.centeredText(Minecraft.getInstance().font, getMessage(),
                     getX() + getWidth() / 2, getY() + (getHeight() - 8) / 2, 0xFFFFFF);
         }
     }

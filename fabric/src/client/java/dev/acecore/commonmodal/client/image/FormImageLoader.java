@@ -1,10 +1,10 @@
 package dev.acecore.commonmodal.client.image;
 
 import dev.acecore.commonmodal.api.form.SimpleForm;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * plan.md §4.2.A に基づく。
  * <ul>
- *   <li>{@code type: "url"}: HTTP でダウンロードし {@link NativeImageBackedTexture} へ。</li>
+ *   <li>{@code type: "url"}: HTTP でダウンロードし {@link DynamicTexture} へ。</li>
  *   <li>{@code type: "path"}: リソースパック内テクスチャを {@link Identifier} として解決。</li>
  * </ul>
  * エラー時はフォールバック (アイコン領域を詰める) ため {@code null} を返す設計。
@@ -54,7 +54,7 @@ public final class FormImageLoader {
         }
         if ("path".equalsIgnoreCase(type)) {
             try {
-                Identifier id = Identifier.of(data);
+                Identifier id = Identifier.parse(data);
                 return CompletableFuture.completedFuture(id);
             } catch (Exception e) {
                 return CompletableFuture.completedFuture(null);
@@ -96,9 +96,10 @@ public final class FormImageLoader {
             return null;
         }
         String path = "dynamic/" + Integer.toHexString(url.hashCode());
-        Identifier id = Identifier.of(NAMESPACE, path);
-        NativeImageBackedTexture texture = new NativeImageBackedTexture(image);
-        MinecraftClient.getInstance().getTextureManager().registerTexture(id, texture);
+        Identifier id = Identifier.fromNamespaceAndPath(NAMESPACE, path);
+        DynamicTexture texture = new DynamicTexture(() -> "Dynamic texture for " + url, image);
+        Minecraft.getInstance().getTextureManager().register(id, texture);
+
         return id;
     }
 }

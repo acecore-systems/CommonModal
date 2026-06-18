@@ -4,7 +4,9 @@
   "version": "${version}",
   "name": "commonModal",
   "description": "",
-  "authors": [],
+  "authors": [
+    "sekisei"
+  ],
   "contact": {},
   "license": "All-Rights-Reserved",
   "icon": "assets/commonmodal/icon.png",
@@ -22,8 +24,9 @@
     }
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
+    "fabricloader": ">=0.19.3",
     "fabric-api": "*",
-    "minecraft": "${minecraft_version}"
+    "minecraft": "26.1.2",
+    "java": ">=25"
   }
 }

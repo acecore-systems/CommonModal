@@ -2,9 +2,13 @@ package dev.acecore.commonmodal.client.screen;
 
 import dev.acecore.commonmodal.api.form.Form;
 import dev.acecore.commonmodal.api.form.ModalForm;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 2択ダイアログ (Modal Form) を描画する {@link Screen}。
@@ -23,7 +27,7 @@ public final class ModalFormScreen extends Screen {
     private static final int PADDING = 10;
 
     public ModalFormScreen(int formId, Form form, CommonModalScreens.FormCallbacks callbacks) {
-        super(Text.literal(form.getTitle()));
+        super(Component.literal(form.getTitle()));
         this.formId = formId;
         this.form = (ModalForm) form;
         this.callbacks = callbacks;
@@ -34,30 +38,30 @@ public final class ModalFormScreen extends Screen {
         int centerX = this.width / 2;
         int bottomY = this.height / 2 + 40;
 
-        this.addDrawableChild(ButtonWidget.builder(Text.literal(form.getButton1()), btn -> finish(true))
-                .dimensions(centerX - BUTTON_WIDTH - PADDING / 2, bottomY, BUTTON_WIDTH, BUTTON_HEIGHT)
+        this.addRenderableWidget(Button.builder(Component.literal(form.getButton1()), btn -> finish(true))
+                .bounds(centerX - BUTTON_WIDTH - PADDING / 2, bottomY, BUTTON_WIDTH, BUTTON_HEIGHT)
                 .build());
 
-        this.addDrawableChild(ButtonWidget.builder(Text.literal(form.getButton2()), btn -> finish(false))
-                .dimensions(centerX + PADDING / 2, bottomY, BUTTON_WIDTH, BUTTON_HEIGHT)
+        this.addRenderableWidget(Button.builder(Component.literal(form.getButton2()), btn -> finish(false))
+                .bounds(centerX + PADDING / 2, bottomY, BUTTON_WIDTH, BUTTON_HEIGHT)
                 .build());
     }
 
     @Override
-    public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
-        super.render(context, mouseX, mouseY, delta);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
 
         int centerX = this.width / 2;
         int textY = this.height / 2 - 40;
 
         // タイトル
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, centerX, textY, 0xFFFFFF);
+        graphics.centeredText(this.font, this.title, centerX, textY, 0xFFFFFF);
 
         // 説明文（複数行に分けて描画）
         textY += 25;
         for (String line : wrapText(form.getContent(), 260)) {
-            context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(line), centerX, textY, 0xAAAAAA);
-            textY += this.textRenderer.fontHeight + 2;
+            graphics.centeredText(this.font, Component.literal(line), centerX, textY, 0xAAAAAA);
+            textY += this.font.lineHeight + 2;
         }
     }
 
@@ -67,27 +71,27 @@ public final class ModalFormScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         finish(null);
     }
 
     private void finish(Boolean value) {
-        if (this.client == null) {
+        if (this.minecraft == null) {
             return;
         }
-        this.client.setScreen(null);
+        this.minecraft.setScreen(null);
         callbacks.onResult(formId, value);
     }
 
-    private java.util.List<String> wrapText(String text, int maxWidth) {
-        java.util.List<String> lines = new java.util.ArrayList<>();
+    private List<String> wrapText(String text, int maxWidth) {
+        List<String> lines = new ArrayList<>();
         if (text == null || text.isEmpty()) {
             return lines;
         }
         StringBuilder current = new StringBuilder();
         for (String word : text.split(" ")) {
             String test = current.isEmpty() ? word : current + " " + word;
-            if (this.textRenderer.getWidth(test) > maxWidth && !current.isEmpty()) {
+            if (this.font.width(test) > maxWidth && !current.isEmpty()) {
                 lines.add(current.toString());
                 current = new StringBuilder(word);
             } else {

@@ -71,7 +71,22 @@ public final class CommonModalAPI {
         ACTIVE_FORMS.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>()).put(formId, session);
 
         String json = FormCodec.encodeForm(formId, form);
-        player.sendPluginMessage(plugin, CommonModalChannels.FORM, json.getBytes(StandardCharsets.UTF_8));
+
+        byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
+        com.google.common.io.ByteArrayDataOutput out = com.google.common.io.ByteStreams.newDataOutput();
+
+        writeVarInt(out, jsonBytes.length);
+        out.write(jsonBytes);
+
+        player.sendPluginMessage(plugin, CommonModalChannels.FORM, out.toByteArray());
+    }
+    /** Minecraft仕様の VarInt を ByteArrayDataOutput に書き込むヘルパー */
+    private static void writeVarInt(com.google.common.io.ByteArrayDataOutput out, int value) {
+        while ((value & 0xFFFFFF80) != 0L) {
+            out.writeByte((value & 0x7F) | 0x80);
+            value >>>= 7;
+        }
+        out.writeByte(value & 0x7F);
     }
 
     /**

@@ -5,7 +5,7 @@ import dev.acecore.commonmodal.client.screen.CommonModalScreens;
 import dev.acecore.commonmodal.protocol.FormPayload;
 import dev.acecore.commonmodal.protocol.ResponsePayload;
 import net.fabricmc.api.ClientModInitializer;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 /**
  * commonModal Fabric クライアントmod の初期化エントリポイント。
@@ -25,7 +25,7 @@ public final class CommonmodalClient implements ClientModInitializer {
     }
 
     private void onFormReceived(FormPayload payload) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         CommonModalScreens.open(client, payload.getId(), payload.getForm(), (formId, value) -> {
             ResponsePayload response = new ResponsePayload(formId, value);
             ClientNetworking.sendResponse(response);
