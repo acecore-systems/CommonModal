@@ -1,7 +1,6 @@
 .idea
 .gradle
 build
-.github
 local.properties
 .vscode
 *.iml
@@ -29,6 +28,8 @@ local.properties
 *.seed
 *.pid.lock
 target/*
+dependency-reduced-pom.xml
+problems/
 
 plan.md
 plugin-spec.md
